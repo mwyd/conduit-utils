@@ -1,0 +1,6 @@
+{
+    "require": {
+        "mwyd/psockets": "^0.11.0",
+        "guzzlehttp/guzzle": "^7.3"
+    }
+}
