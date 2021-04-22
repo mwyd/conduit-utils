@@ -77,7 +77,7 @@ for($i = 0; $i < ceil($itemsLimit / $perPage); $i++)
     }
     catch(\Exception $e)
     {
-        Logger::warn("[{$e->getCode()}] {$e->getMessage()}}");
+        Logger::warn("[{$e->getCode()}] {$e->getMessage()}");
         sleep($requestDelay);
         $i--;
     }

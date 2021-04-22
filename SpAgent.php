@@ -93,7 +93,7 @@ class SpAgent extends WsClient
         return $schema;
     }
 
-    private function getSteamPrice(string $hashName) : ?int
+    private function getSteamPrice(string $hashName) : ?float
     {
         $price = null;
     
@@ -118,7 +118,7 @@ class SpAgent extends WsClient
         return $price;
     }
 
-    private function getShadowpayPrice(string $hashName, bool $isStattrak) : ?int
+    private function getShadowpayPrice(string $hashName, bool $isStattrak) : ?float
     {
         $price = null;
     
@@ -152,7 +152,7 @@ class SpAgent extends WsClient
                 {
                     if($item->is_stattrak == $isStattrak)
                     {
-                        $price = floatval($item->price_real) * 100;
+                        $price = $item->price_real;
                         break;
                     }
                 }
