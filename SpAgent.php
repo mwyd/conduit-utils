@@ -9,15 +9,13 @@ use pSockets\Utils\Logger;
 
 class SpAgent extends WsClient
 {
-    const CONDUIT_API_URL   = 'http://localhost:8000/api';
+    const CONDUIT_API_URL   = 'http://localhost/conduit-laravel/public/api';
     const SHADOWPAY_API_URL = 'https://api.shadowpay.com/api/market';
 
-    const CONDUIT_API_TOKEN = 'qcIvRZIx5nM8o1Z0';
+    const CONDUIT_API_TOKEN = '2|4mpom0q4I59odeRFQJGLs3qpQTuqon8ZtgKM5V7Y';
 
-    protected function onOpen() : void
-    {
-	    
-    }
+    protected function onOpen() : void {}
+    protected function onClose() : void {}
 
     protected function onMessage(WsMessage $message) : void
     {
@@ -38,11 +36,6 @@ class SpAgent extends WsClient
         }
     }
 
-    protected function onClose() : void
-    {
-
-    }
-
     private function saveItem(object $item) : void
     {
         try
@@ -52,7 +45,7 @@ class SpAgent extends WsClient
             $client = new Client();
             $client->request('POST', self::CONDUIT_API_URL . "/shadowpay-sold-items", [
                 'headers' => [
-                    'Token' => self::CONDUIT_API_TOKEN,
+                    'Authorization' => 'Bearer ' . self::CONDUIT_API_TOKEN,
                     'Accept' => 'application/json'
                 ],
                 'form_params' => (array) $item
@@ -102,12 +95,11 @@ class SpAgent extends WsClient
             $client = new Client();
             $res = $client->request('GET', self::CONDUIT_API_URL . "/steam-market-csgo-items/{$hashName}", [
                 'headers' => [
-                    'Token' => self::CONDUIT_API_TOKEN,
                     'Accept' => 'application/json'
                 ]
             ]);
     
-            $resJson = json_decode($res->getBody());
+            $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
             $price = $resJson->data->price;
         }
         catch(\Exception $e)
@@ -136,7 +128,7 @@ class SpAgent extends WsClient
                     'game' => 'csgo',
                     'currency' => 'USD',
                     'sort_column' => 'price_rate',
-                    'sort_dir' => 'desc',
+                    'sort' => 'desc',
                     'search' => $hashName,
                     'stack' => false,
                     'limit' => 50,

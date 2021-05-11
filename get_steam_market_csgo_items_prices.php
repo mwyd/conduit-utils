@@ -13,6 +13,7 @@ $logger = new Logger(0);
 $itemsLimit = 20000;
 $perPage = 100;
 $requestDelay = 60;
+$itemsProcessed = 0;
 
 for($i = 0; $i < ceil($itemsLimit / $perPage); $i++)
 {
@@ -73,7 +74,9 @@ for($i = 0; $i < ceil($itemsLimit / $perPage); $i++)
             }
         }
 
-        $logger->log("Got " . $i * $perPage . " of {$itemsLimit} items");
+        $itemsProcessed += count($resJson->results);
+        
+        $logger->log("Got {$itemsProcessed} of {$itemsLimit} items");
     }
     catch(\Exception $e)
     {
