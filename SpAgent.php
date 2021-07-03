@@ -9,7 +9,7 @@ use pSockets\Utils\Logger;
 
 class SpAgent extends WsClient
 {
-    const CONDUIT_API_URL   = 'http://localhost/conduit-laravel/public/api';
+    const CONDUIT_API_URL   = 'http://localhost:8000/api/v1';
     const SHADOWPAY_API_URL = 'https://api.shadowpay.com/api/market';
 
     const CONDUIT_API_TOKEN = '2|4mpom0q4I59odeRFQJGLs3qpQTuqon8ZtgKM5V7Y';
@@ -78,7 +78,7 @@ class SpAgent extends WsClient
         $schema = new stdClass;
         $schema->transaction_id = $item->id;
         $schema->hash_name = $hashName;
-        $schema->sell_price = $this->getShadowpayPrice($hashName, $item->is_stattrak);
+        $schema->suggested_price = $this->getShadowpayPrice($hashName, $item->is_stattrak);
         $schema->steam_price = $this->getSteamPrice($hashName);
         $schema->discount = $item->discount_percent ?? 0;
         $schema->sold_at = $item->time_created;
