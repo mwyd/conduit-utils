@@ -40,15 +40,13 @@ class SpAgent extends WsClient
     {
         try
         {
-            $item = $this->buildSchema($item);
-    
             $client = new Client();
             $client->request('POST', self::CONDUIT_API_URL . "/shadowpay-sold-items", [
                 'headers' => [
                     'Authorization' => 'Bearer ' . self::CONDUIT_API_TOKEN,
                     'Accept' => 'application/json'
                 ],
-                'form_params' => (array) $item
+                'form_params' => (array) $this->buildSchema($item)
             ]);  
         }
         catch(\Exception $e)
@@ -78,7 +76,7 @@ class SpAgent extends WsClient
         $schema = new stdClass;
         $schema->transaction_id = $item->id;
         $schema->hash_name = $hashName;
-        $schema->suggested_price = $this->getShadowpayPrice($hashName, $item->is_stattrak);
+        $schema->suggested_price = $this->getShadowpayPrice($item);
         $schema->steam_price = $this->getSteamPrice($hashName);
         $schema->discount = $item->discount_percent ?? 0;
         $schema->sold_at = $item->time_created;
@@ -110,7 +108,7 @@ class SpAgent extends WsClient
         return $price;
     }
 
-    private function getShadowpayPrice(string $hashName, bool $isStattrak) : ?float
+    private function getShadowpayPrice(object $item) : ?float
     {
         $price = null;
     
@@ -129,8 +127,8 @@ class SpAgent extends WsClient
                     'currency' => 'USD',
                     'sort_column' => 'price_rate',
                     'sort' => 'desc',
-                    'search' => $hashName,
-                    'stack' => false,
+                    'search' => $item->name,
+                    'stack' => true,
                     'limit' => 50,
                     'offset' => 0
                 ]
@@ -140,11 +138,15 @@ class SpAgent extends WsClient
     
             if($resJson->status == 'success')
             {
-                foreach($resJson->items as $item)
+                foreach($resJson->items as $marketItem)
                 {
-                    if($item->is_stattrak == $isStattrak)
+                    if(
+                        $marketItem->is_stattrak == $item->is_stattrak && 
+                        $marketItem->shorten_exterior == $item->shorten_exterior && 
+                        $marketItem->steam_short_name == $item->name
+                    )
                     {
-                        $price = $item->price_real;
+                        $price = $marketItem->price_real;
                         break;
                     }
                 }
