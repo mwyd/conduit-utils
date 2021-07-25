@@ -34,21 +34,14 @@ class SpAgent extends WsClient
 
     private function saveItem(object $item) : void
     {
-        try
-        {
-            $client = new Client();
-            $client->request('POST', $_ENV['CONDUIT_API_URL'] . '/shadowpay-sold-items', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
-                    'Accept' => 'application/json'
-                ],
-                'form_params' => (array) $this->buildSchema($item)
-            ]);  
-        }
-        catch(\Exception $e)
-        {
-            Logger::warn($e->getMessage() . ': ' . $e->getCode());
-        }
+        $client = new Client();
+        $client->request('POST', $_ENV['CONDUIT_API_URL'] . '/shadowpay-sold-items', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
+                'Accept' => 'application/json'
+            ],
+            'form_params' => (array) $this->buildSchema($item)
+        ]);
     }
 
     private function buildSchema(object $item) : object
