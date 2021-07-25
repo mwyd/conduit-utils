@@ -2,6 +2,7 @@
 
 require_once __DIR__ . "/vendor/autoload.php";
 
+use Dotenv\Dotenv;
 use GuzzleHttp\Client;
 use pSockets\WebSocket\WsClient;
 use pSockets\WebSocket\WsMessage;
@@ -9,11 +10,6 @@ use pSockets\Utils\Logger;
 
 class SpAgent extends WsClient
 {
-    const CONDUIT_API_URL   = 'http://localhost:8000/api/v1';
-    const SHADOWPAY_API_URL = 'https://api.shadowpay.com/api/market';
-
-    const CONDUIT_API_TOKEN = '2|4mpom0q4I59odeRFQJGLs3qpQTuqon8ZtgKM5V7Y';
-
     protected function onOpen() : void {}
     protected function onClose() : void {}
 
@@ -41,9 +37,9 @@ class SpAgent extends WsClient
         try
         {
             $client = new Client();
-            $client->request('POST', self::CONDUIT_API_URL . "/shadowpay-sold-items", [
+            $client->request('POST', $_ENV['CONDUIT_API_URL'] . '/shadowpay-sold-items', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . self::CONDUIT_API_TOKEN,
+                    'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                     'Accept' => 'application/json'
                 ],
                 'form_params' => (array) $this->buildSchema($item)
@@ -76,7 +72,7 @@ class SpAgent extends WsClient
         $schema = new stdClass;
         $schema->transaction_id = $item->id;
         $schema->hash_name = $hashName;
-        $schema->suggested_price = $this->getShadowpayPrice($item);
+        $schema->suggested_price = $this->getShadowpayPrice($hashName);
         $schema->steam_price = $this->getSteamPrice($hashName);
         $schema->discount = $item->discount_percent ?? 0;
         $schema->sold_at = $item->time_created;
@@ -91,7 +87,7 @@ class SpAgent extends WsClient
         try
         {
             $client = new Client();
-            $res = $client->request('GET', self::CONDUIT_API_URL . "/steam-market-csgo-items/{$hashName}", [
+            $res = $client->request('GET', $_ENV['CONDUIT_API_URL'] . "/steam-market-csgo-items/{$hashName}", [
                 'headers' => [
                     'Accept' => 'application/json'
                 ]
@@ -108,29 +104,23 @@ class SpAgent extends WsClient
         return $price;
     }
 
-    private function getShadowpayPrice(object $item) : ?float
+    private function getShadowpayPrice(string $hashName) : ?float
     {
         $price = null;
     
         try
         {
             $client = new Client();
-            $res = $client->request('GET', self::SHADOWPAY_API_URL . "/get_items", [
+            $res = $client->request('GET', $_ENV['SHADOWPAY_API_URL'] . '/user/items/steam', [
                 'headers' => [
                     'Accept' => 'application/json',
-                    'Origin' => 'https://shadowpay.com'
+                    'Origin' => $_ENV['ORIGIN']
                 ],
                 'query' => [
-                    'price_from' => 0,
-                    'price_to' => 20000,
-                    'game' => 'csgo',
-                    'currency' => 'USD',
-                    'sort_column' => 'price_rate',
-                    'sort' => 'desc',
-                    'search' => $item->name,
-                    'stack' => true,
-                    'limit' => 50,
-                    'offset' => 0
+                    'token' => $_ENV['SHADOWPAY_API_TOKEN'],
+                    'project' => 'csgo',
+                    'search' => $hashName,
+                    'limit' => 50
                 ]
             ]);
     
@@ -138,15 +128,11 @@ class SpAgent extends WsClient
     
             if($resJson->status == 'success')
             {
-                foreach($resJson->items as $marketItem)
+                foreach($resJson->data as $item)
                 {
-                    if(
-                        $marketItem->is_stattrak == $item->is_stattrak && 
-                        $marketItem->shorten_exterior == $item->shorten_exterior && 
-                        $marketItem->steam_short_name == $item->name
-                    )
+                    if($item->steam_market_hash_name == $hashName)
                     {
-                        $price = $marketItem->price_real;
+                        $price = $item->suggested_price;
                         break;
                     }
                 }
@@ -161,15 +147,25 @@ class SpAgent extends WsClient
     }
 }
 
-while(true)
+try
 {
-    $ws = new SpAgent("wss://ws.shadowpay.com/websocket", [
-    	'LOG_LEVEL'             => 1,
-    	'ADDITIONAL_HEADERS'    => [
-            'Origin: https://shadowpay.com'
-    	]
-    ]);
-    $ws->run();
+    $dotenv = Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
 
-    sleep(60);
+    while(true)
+    {
+        $ws = new SpAgent("wss://ws.shadowpay.com/websocket", [
+            'LOG_LEVEL'             => $_ENV['LOG_LEVEL'],
+            'ADDITIONAL_HEADERS'    => [
+                'Origin: ' . $_ENV['ORIGIN']
+            ]
+        ]);
+        $ws->run();
+    
+        sleep($_ENV['RECONNECT_DELAY']);
+    }
+}
+catch(\Exception $e)
+{
+    Logger::err($e->getMessage() . ': ' . $e->getCode());
 }
