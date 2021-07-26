@@ -3,13 +3,22 @@
 require_once __DIR__ . "/vendor/autoload.php";
 
 use Dotenv\Dotenv;
-use GuzzleHttp\Client;
+use GuzzleHttp\Client as HttpClient;
 use pSockets\WebSocket\WsClient;
 use pSockets\WebSocket\WsMessage;
 use pSockets\Utils\Logger;
 
 class SpAgent extends WsClient
 {
+    private HttpClient $httpClient;
+
+    public function __construct(string $address, array $config)
+    {
+        parent::__construct($address, $config);
+
+        $this->httpClient = new HttpClient();
+    }
+
     protected function onOpen() : void {}
     protected function onClose() : void {}
 
@@ -34,8 +43,7 @@ class SpAgent extends WsClient
 
     private function saveItem(object $item) : void
     {
-        $client = new Client();
-        $client->request('POST', $_ENV['CONDUIT_API_URL'] . '/shadowpay-sold-items', [
+        $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/shadowpay-sold-items', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                 'Accept' => 'application/json'
@@ -79,8 +87,7 @@ class SpAgent extends WsClient
     
         try
         {
-            $client = new Client();
-            $res = $client->request('GET', $_ENV['CONDUIT_API_URL'] . "/steam-market-csgo-items/{$hashName}", [
+            $res = $this->httpClient->get($_ENV['CONDUIT_API_URL'] . "/steam-market-csgo-items/{$hashName}", [
                 'headers' => [
                     'Accept' => 'application/json'
                 ]
@@ -103,8 +110,7 @@ class SpAgent extends WsClient
     
         try
         {
-            $client = new Client();
-            $res = $client->request('GET', $_ENV['SHADOWPAY_API_URL'] . '/user/items/steam', [
+            $res = $this->httpClient->get($_ENV['SHADOWPAY_API_URL'] . '/user/items/steam', [
                 'headers' => [
                     'Accept' => 'application/json',
                     'Origin' => $_ENV['ORIGIN']
