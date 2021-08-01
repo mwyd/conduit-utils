@@ -102,7 +102,7 @@ class SmAgent
 
     public function createConduitSteamItem(array $formParams) : ResponseInterface
     {
-        return $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/steam-market-csgo-items', [
+        return $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/v1/steam-market-csgo-items', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                 'Accept' => 'application/json'
@@ -114,7 +114,7 @@ class SmAgent
 
     private function updateConduitSteamItem(string $hashName, array $formParams) : ResponseInterface
     {
-        return $this->httpClient->put($_ENV['CONDUIT_API_URL'] . "/steam-market-csgo-items/{$hashName}", [
+        return $this->httpClient->put($_ENV['CONDUIT_API_URL'] . "/v1/steam-market-csgo-items/{$hashName}", [
             'headers' => [
                 'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                 'Accept' => 'application/json'

@@ -19,8 +19,29 @@ class SpAgent extends WsClient
         $this->httpClient = new HttpClient();
     }
 
-    protected function onOpen() : void {}
     protected function onClose() : void {}
+
+    protected function onOpen() : void 
+    {
+        $res = $this->httpClient->get($_ENV['SHADOWPAY_API_URL'] . '/market/is_logged', [
+            'headers' => [
+                'Accept' => 'application/json',
+                'Origin' => $_ENV['ORIGIN']
+            ]
+        ]);
+
+        $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
+        $wssToken = $resJson->wss_token;
+
+        $this->send(
+            json_encode([
+                'id' => 1,
+                'params' => [
+                    'token' => $wssToken
+                ]
+            ])
+        );
+    }
 
     protected function onMessage(WsMessage $message) : void
     {
@@ -28,10 +49,14 @@ class SpAgent extends WsClient
         {
             $msg = $message->json();
 
-	        switch($msg->type)
+            $result = $msg->result;
+            
+            if(!isset($result->data)) return;
+
+	        switch($result->data->data->type)
             {
             	case 'live_items':
-                    foreach($msg->data as $item) $this->saveItem($item);
+                    foreach($result->data->data->data as $item) $this->saveItem($item);
                     break;
             }
         }
@@ -43,7 +68,7 @@ class SpAgent extends WsClient
 
     private function saveItem(object $item) : void
     {
-        $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/shadowpay-sold-items', [
+        $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/v1/shadowpay-sold-items', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                 'Accept' => 'application/json'
@@ -87,7 +112,7 @@ class SpAgent extends WsClient
     
         try
         {
-            $res = $this->httpClient->get($_ENV['CONDUIT_API_URL'] . "/steam-market-csgo-items/{$hashName}", [
+            $res = $this->httpClient->get($_ENV['CONDUIT_API_URL'] . "/v1/steam-market-csgo-items/{$hashName}", [
                 'headers' => [
                     'Accept' => 'application/json'
                 ]
@@ -110,7 +135,7 @@ class SpAgent extends WsClient
     
         try
         {
-            $res = $this->httpClient->get($_ENV['SHADOWPAY_API_URL'] . '/user/items/steam', [
+            $res = $this->httpClient->get($_ENV['SHADOWPAY_API_URL'] . '/v2/user/items/steam', [
                 'headers' => [
                     'Accept' => 'application/json',
                     'Origin' => $_ENV['ORIGIN']
@@ -153,7 +178,7 @@ try
 
     while(true)
     {
-        $ws = new SpAgent("wss://ws.shadowpay.com/websocket", [
+        $ws = new SpAgent($_ENV['SHADOWPAY_WS_URL'], [
             'LOG_LEVEL'             => $_ENV['LOG_LEVEL'],
             'ADDITIONAL_HEADERS'    => [
                 'Origin: ' . $_ENV['ORIGIN']
