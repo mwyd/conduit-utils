@@ -49,14 +49,33 @@ class SpAgent extends WsClient
         {
             $msg = $message->json();
 
-            $result = $msg->result;
-            
-            if(!isset($result->data)) return;
-
-	        switch($result->data->data->type)
+            if(isset($msg->id))
             {
-            	case 'live_items':
-                    foreach($result->data->data->data as $item) $this->saveItem($item);
+                switch($msg->id)
+                {
+                    case 1:
+                        $this->send(
+                            json_encode([
+                                'id' => 2,
+                                'method' => 9,
+                                'params' => [
+                                    'data' => [],
+                                    'method' => 'send_first_stat'
+                                ]      
+                            ])
+                        );
+                        break;
+                }
+
+                return;
+            }
+
+            $data = $msg->result->data->data;
+
+            switch($data->type)
+            {
+                case 'live_items':
+                    foreach($data->data as $item) $this->saveItem($item);
                     break;
             }
         }
