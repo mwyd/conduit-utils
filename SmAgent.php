@@ -20,7 +20,7 @@ class SmAgent
 
     public function run() : void
     {
-        $itemsProcessed = 0;
+        $itemsProcessed = $_ENV['ITEMS_START'];
 
         for($i = 0; $i < ceil($_ENV['ITEMS_LIMIT'] / $_ENV['ITEMS_PER_PAGE']); $i++)
         {
