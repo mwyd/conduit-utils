@@ -35,10 +35,11 @@ class SmAgent
                         'start' => $i * $_ENV['ITEMS_PER_PAGE'],
                         'count' => $_ENV['ITEMS_PER_PAGE'],
                         'search_descriptions' => 0,
-                        'sort_column' => 'name',
-                        'sort_dir' => 'asc',
+                        'sort_column' => 'popular',
+                        'sort_dir' => 'desc',
                         'appid' => 730,
-                        'norender' => 1
+                        'norender' => 1,
+                        'l' => 'english'
                     ]
                 ]);
         
@@ -90,7 +91,11 @@ class SmAgent
                     'hash_name' => $item->hash_name,
                     'volume' => $item->sell_listings,
                     'price' => $item->sell_price / 100,
-                    'icon' => $item->asset_description->icon_url
+                    'icon' => $item->asset_description->icon_url,
+                    'is_stattrak' => str_contains($item->hash_name, 'StatTrak™'),
+                    'name_color' => "#{$item->asset_description->name_color}",
+                    'exterior' => $this->getItemExterior($item->hash_name),
+                    'type' => $item->asset_description->type
                 ]);
             }
         }
@@ -122,6 +127,26 @@ class SmAgent
             'form_params' => $formParams,
             'http_errors' => false
         ]);
+    }
+
+    private function getItemExterior($hashName) : ?string
+    {
+        $exteriors = [
+            'FN' => '(Factory New)',
+            'MW' => '(Minimal Wear)',
+            'FT' => '(Field-Tested)',
+            'WW' => '(Well-Worn)',
+            'BS' => '(Battle-Scarred)',
+            'FOIL' => '(Foil)',
+            'HOLO' => '(Holo)'
+        ];
+
+        foreach($exteriors as $short => $exterior)
+        {
+            if(str_contains($hashName, $exterior)) return $short;
+        }
+
+        return null;
     }
 }
 
