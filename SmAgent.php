@@ -92,9 +92,7 @@ class SmAgent
                     'volume' => $item->sell_listings,
                     'price' => $item->sell_price / 100,
                     'icon' => $item->asset_description->icon_url,
-                    'is_stattrak' => str_contains($item->hash_name, 'StatTrak™'),
                     'name_color' => "#{$item->asset_description->name_color}",
-                    'exterior' => $this->getItemExterior($item->hash_name),
                     'type' => $item->asset_description->type
                 ]);
             }
@@ -105,48 +103,28 @@ class SmAgent
         }
     }
 
-    public function createConduitSteamItem(array $formParams) : ResponseInterface
+    public function createConduitSteamItem(array $formData) : ResponseInterface
     {
         return $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/v1/steam-market-csgo-items', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                 'Accept' => 'application/json'
             ],
-            'form_params' => $formParams,
+            'form_params' => $formData,
             'http_errors' => false
         ]);
     }
 
-    private function updateConduitSteamItem(string $hashName, array $formParams) : ResponseInterface
+    private function updateConduitSteamItem(string $hashName, array $formData) : ResponseInterface
     {
         return $this->httpClient->put($_ENV['CONDUIT_API_URL'] . "/v1/steam-market-csgo-items/{$hashName}", [
             'headers' => [
                 'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
                 'Accept' => 'application/json'
             ],
-            'form_params' => $formParams,
+            'form_params' => $formData,
             'http_errors' => false
         ]);
-    }
-
-    private function getItemExterior($hashName) : ?string
-    {
-        $exteriors = [
-            'FN' => '(Factory New)',
-            'MW' => '(Minimal Wear)',
-            'FT' => '(Field-Tested)',
-            'WW' => '(Well-Worn)',
-            'BS' => '(Battle-Scarred)',
-            'FOIL' => '(Foil)',
-            'HOLO' => '(Holo)'
-        ];
-
-        foreach($exteriors as $short => $exterior)
-        {
-            if(str_contains($hashName, $exterior)) return $short;
-        }
-
-        return null;
     }
 }
 
