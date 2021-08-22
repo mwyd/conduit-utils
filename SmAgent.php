@@ -26,7 +26,7 @@ class SmAgent
         {
             try
             {
-                $res = $this->httpClient->get($_ENV['STEAM_MARKET_API_URL'] . '/search/render', [
+                $res = $this->httpClient->get($_ENV['STEAM_MARKET_API_URL'] . '/search/render/', [
                     'headers' => [
                         'Accept' => 'application/json'
                     ],
@@ -35,8 +35,8 @@ class SmAgent
                         'start' => $itemsProcessed,
                         'count' => $_ENV['ITEMS_PER_PAGE'],
                         'search_descriptions' => 0,
-                        'sort_column' => 'name',
-                        'sort_dir' => 'asc',
+                        'sort_column' => 'popular',
+                        'sort_dir' => 'desc',
                         'appid' => 730,
                         'norender' => 1,
                         'l' => 'english'
