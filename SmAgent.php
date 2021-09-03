@@ -2,6 +2,7 @@
 
 require_once __DIR__ . "/vendor/autoload.php";
 
+use ConduitUtils\Resources\DopplerIcons;
 use Dotenv\Dotenv;
 use GuzzleHttp\Client as HttpClient;
 use pSockets\Utils\Logger;
