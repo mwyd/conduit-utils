@@ -55,7 +55,7 @@ class SdAgend
                     'query' => [
                         'query'         => '',
                         'start'         => $itemsProcessed,
-                        'count'         => 10,
+                        'count'         => $_ENV['DOPPLER_PER_PAGE'],
                         'currency'      => 1,
                         'language'      => 'english'
                     ]
@@ -93,7 +93,7 @@ class SdAgend
 
                 $itemsProcessed += count($listings);
 
-                $this->logger->log("Got {$itemsProcessed} of " . $_ENV['DOPPLER_PAGE_LIMIT'] * 50 . " items", 1);
+                $this->logger->log("Got {$itemsProcessed} of " . $_ENV['DOPPLER_PAGE_LIMIT'] * $_ENV['DOPPLER_PER_PAGE'] . " items", 1);
 
                 if($itemsProcessed >= $resJson->total_count) break;
             }
