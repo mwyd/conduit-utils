@@ -2,42 +2,36 @@
 
 require_once __DIR__ . "/vendor/autoload.php";
 
+use ConduitUtils\Api\HasConduitShadowpaySoldItems;
+use ConduitUtils\Api\HasConduitSteamMarketCsgoItems;
+use ConduitUtils\Api\HasShadowpayMarket;
 use Dotenv\Dotenv;
-use GuzzleHttp\Client as HttpClient;
 use pSockets\WebSocket\WsClient;
 use pSockets\WebSocket\WsMessage;
 use pSockets\Utils\Logger;
 
 class SpAgent extends WsClient
 {
-    private HttpClient $httpClient;
+    use HasConduitSteamMarketCsgoItems, HasConduitShadowpaySoldItems, HasShadowpayMarket;
 
     public function __construct(string $address, array $config)
     {
         parent::__construct($address, $config);
-
-        $this->httpClient = new HttpClient();
     }
 
     protected function onClose() : void {}
 
     protected function onOpen() : void 
     {
-        $res = $this->httpClient->get($_ENV['SHADOWPAY_API_URL'] . '/market/is_logged', [
-            'headers' => [
-                'Accept' => 'application/json',
-                'Origin' => $_ENV['ORIGIN']
-            ]
-        ]);
+        $res = $this->shadowpayIsLogged(true);
 
         $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
-        $wssToken = $resJson->wss_token;
 
         $this->send(
             json_encode([
                 'id' => 1,
                 'params' => [
-                    'token' => $wssToken
+                    'token' => $resJson->wss_token
                 ]
             ])
         );
@@ -75,7 +69,10 @@ class SpAgent extends WsClient
             switch($data->type)
             {
                 case 'live_items':
-                    foreach($data->data as $item) $this->saveItem($item);
+                    foreach($data->data as $item)
+                    {
+                        $this->createConduitShadowpaySoldItem($this->buildSchema($item), true);
+                    }
                     break;
             }
         }
@@ -85,57 +82,64 @@ class SpAgent extends WsClient
         }
     }
 
-    private function saveItem(object $item) : void
-    {
-        $this->httpClient->post($_ENV['CONDUIT_API_URL'] . '/v1/shadowpay-sold-items', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $_ENV['CONDUIT_API_TOKEN'],
-                'Accept' => 'application/json'
-            ],
-            'form_params' => (array) $this->buildSchema($item)
-        ]);
-    }
-
-    private function buildSchema(object $item) : object
+    private function buildSchema(object $item) : array
     {
         $hashName = $item->name;
     
         $hashName .= match($item->shorten_exterior) {
-            'FN' => ' (Factory New)',
-            'MW' => ' (Minimal Wear)',
-            'FT' => ' (Field-Tested)',
-            'WW' => ' (Well-Worn)',
-            'BS' => ' (Battle-Scarred)',
-            default => ''
+            'FN'        => ' (Factory New)',
+            'MW'        => ' (Minimal Wear)',
+            'FT'        => ' (Field-Tested)',
+            'WW'        => ' (Well-Worn)',
+            'BS'        => ' (Battle-Scarred)',
+            default     => ''
         };
     
         if($item->is_stattrak)
         {
-            $hashName = str_contains($hashName, '★') ? str_replace('★', '★ StatTrak™', $hashName) : 'StatTrak™ ' . $hashName;
+            $hashName = str_contains($hashName, '★') 
+                ? str_replace('★', '★ StatTrak™', $hashName) 
+                : 'StatTrak™ ' . $hashName;
         }
     
-        $schema = new stdClass;
-        $schema->transaction_id = $item->id;
-        $schema->hash_name = $hashName;
-        $schema->suggested_price = $this->getShadowpayPrice($hashName);
-        $schema->steam_price = $this->getSteamPrice($hashName);
-        $schema->discount = $item->discount_percent ?? 0;
-        $schema->sold_at = $item->time_created;
+        $conduitSteamPrice = null;
+        $shadowpaySteamPrice = null;
+
+        if(str_contains($item->name, 'Doppler'))
+        {
+            $doppler = $this->getConduitDoppler($item->name, $item->shorten_exterior, $item->is_stattrak, $item->icon);
+
+            if($doppler)
+            {
+                $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName, $doppler->phase);
+                $conduitSteamPrice = $doppler->price;
+
+                $hashName = format_hash_name($hashName, $doppler->phase);
+            }
+        }
+        else
+        {
+            $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName);
+            $conduitSteamPrice = $this->getConduitSteamPrice($hashName);
+        }
+
+        $schema['transaction_id']   = $item->id;
+        $schema['hash_name']        = $hashName;
+        $schema['suggested_price']  = $shadowpaySteamPrice;
+        $schema['steam_price']      = $conduitSteamPrice;
+        $schema['discount']         = $item->discount_percent ?? 0;
+        $schema['sold_at']          = $item->time_created;
     
         return $schema;
     }
 
-    private function getSteamPrice(string $hashName) : ?float
+    private function getConduitSteamPrice(string $hashName) : ?float
     {
         $price = null;
     
         try
         {
-            $res = $this->httpClient->get($_ENV['CONDUIT_API_URL'] . "/v1/steam-market-csgo-items/{$hashName}", [
-                'headers' => [
-                    'Accept' => 'application/json'
-                ]
-            ]);
+            $res = $this->getConduitSteamMarketCsgoItem($hashName, true);
     
             $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
             $price = $resJson->data->price;
@@ -148,24 +152,18 @@ class SpAgent extends WsClient
         return $price;
     }
 
-    private function getShadowpayPrice(string $hashName) : ?float
+    private function getShadowpaySteamPrice(string $hashName, ?string $phase = null) : ?float
     {
         $price = null;
     
         try
         {
-            $res = $this->httpClient->get($_ENV['SHADOWPAY_API_URL'] . '/v2/user/items/steam', [
-                'headers' => [
-                    'Accept' => 'application/json',
-                    'Origin' => $_ENV['ORIGIN']
-                ],
-                'query' => [
-                    'token' => $_ENV['SHADOWPAY_API_TOKEN'],
-                    'project' => 'csgo',
-                    'search' => $hashName,
-                    'limit' => 50
-                ]
-            ]);
+            $res = $this->getShadowpaySteamItem([
+                'token'     => $_ENV['SHADOWPAY_API_TOKEN'],
+                'project'   => 'csgo',
+                'search'    => $hashName,
+                'limit'     => 50
+            ], true);
     
             $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
     
@@ -173,7 +171,7 @@ class SpAgent extends WsClient
             {
                 foreach($resJson->data as $item)
                 {
-                    if($item->steam_market_hash_name == $hashName)
+                    if($item->steam_market_hash_name == $hashName && $item->phase == $phase)
                     {
                         $price = $item->suggested_price;
                         break;
@@ -187,6 +185,37 @@ class SpAgent extends WsClient
         }
     
         return $price;
+    }
+
+    private function getConduitDoppler(string $name, string $exterior, string $isStattrak, string $icon) : ?object
+    {
+        $doppler = null;
+
+        try
+        {
+            $res = $this->getConduitSteamMarketCsgoItems([
+                'search'        => $name,
+                'exteriors'     => $exterior,
+                'is_stattrak'   => $isStattrak
+            ], true);
+    
+            $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
+            
+            foreach($resJson->data as $item)
+            {
+                if($item->icon == $icon || $item->icon_large == $icon)
+                {
+                    $doppler = $item;
+                    break;
+                }
+            }
+        }
+        catch(\Exception $e)
+        {
+            Logger::warn($e->getMessage() . ': ' . $e->getCode());
+        }
+
+        return $doppler;
     }
 }
 

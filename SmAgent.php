@@ -2,21 +2,19 @@
 
 require_once __DIR__ . "/vendor/autoload.php";
 
-use ConduitUtils\Api\HasSteamMarketCsgoItems;
+use ConduitUtils\Api\HasConduitSteamMarketCsgoItems;
+use ConduitUtils\Api\HasSteamMarketItems;
 use Dotenv\Dotenv;
-use GuzzleHttp\Client as HttpClient;
 use pSockets\Utils\Logger;
 
 class SmAgent
 {
-    use HasSteamMarketCsgoItems;
+    use HasConduitSteamMarketCsgoItems, HasSteamMarketItems;
 
-    private HttpClient $httpClient;
     private Logger $logger;
 
     public function __construct()
     {
-        $this->httpClient = new HttpClient();
         $this->logger = new Logger($_ENV['LOG_LEVEL']);
     }
 
@@ -28,22 +26,17 @@ class SmAgent
         {
             try
             {
-                $res = $this->httpClient->get($_ENV['STEAM_MARKET_API_URL'] . '/search/render/', [
-                    'headers' => [
-                        'Accept' => 'application/json'
-                    ],
-                    'query' => [
-                        'query'                 => '',
-                        'start'                 => $itemsProcessed,
-                        'count'                 => $_ENV['ITEMS_PER_PAGE'],
-                        'search_descriptions'   => 0,
-                        'sort_column'           => 'popular',
-                        'sort_dir'              => 'desc',
-                        'appid'                 => 730,
-                        'norender'              => 1,
-                        'l'                     => 'english'
-                    ]
-                ]);
+                $res = $this->getSteamMarketItems([
+                    'query'                 => '',
+                    'start'                 => $itemsProcessed,
+                    'count'                 => $_ENV['ITEMS_PER_PAGE'],
+                    'search_descriptions'   => 0,
+                    'sort_column'           => 'popular',
+                    'sort_dir'              => 'desc',
+                    'appid'                 => 730,
+                    'norender'              => 1,
+                    'l'                     => 'english'
+                ], true);
         
                 $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
 
@@ -59,7 +52,7 @@ class SmAgent
                 {
                     if(!$_ENV['BASE_DOPPLERS'] && str_contains($item->hash_name, 'Doppler')) continue;
 
-                    $this->upsertConduitSteamItem([
+                    $this->upsertConduitSteamMarketCsgoItem([
                         'hash_name'     => $item->hash_name,
                         'volume'        => $item->sell_listings,
                         'price'         => $item->sell_price / 100,

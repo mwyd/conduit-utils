@@ -9,3 +9,8 @@ function array_find_index(array $haystack, \Closure $callback) : int|string
 
     return -1;
 }
+
+function format_hash_name(string $hashName, string $phase) : string
+{
+    return str_replace('(', "{$phase} (", $hashName);
+}

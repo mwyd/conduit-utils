@@ -2,22 +2,20 @@
 
 require_once __DIR__ . "/vendor/autoload.php";
 
-use ConduitUtils\Api\HasSteamMarketCsgoItems;
+use ConduitUtils\Api\HasConduitSteamMarketCsgoItems;
+use ConduitUtils\Api\HasSteamMarketItems;
 use ConduitUtils\Resources\Doppler;
 use Dotenv\Dotenv;
-use GuzzleHttp\Client as HttpClient;
 use pSockets\Utils\Logger;
 
 class SdAgend
 {
-    use HasSteamMarketCsgoItems;
+    use HasConduitSteamMarketCsgoItems, HasSteamMarketItems;
 
-    private HttpClient $httpClient;
     private Logger $logger;
 
     public function __construct()
     {
-        $this->httpClient = new HttpClient();
         $this->logger = new Logger($_ENV['LOG_LEVEL']);
     }
 
@@ -48,18 +46,13 @@ class SdAgend
         {
             try
             {
-                $res = $this->httpClient->get($_ENV['STEAM_MARKET_API_URL'] . "/listings/730/{$hashName}/render/", [
-                    'headers' => [
-                        'Accept' => 'application/json'
-                    ],
-                    'query' => [
-                        'query'         => '',
-                        'start'         => $itemsProcessed,
-                        'count'         => $_ENV['DOPPLER_PER_PAGE'],
-                        'currency'      => 1,
-                        'language'      => 'english'
-                    ]
-                ]);
+                $res = $this->getSteamMarketItemListings($hashName, '730', [
+                    'query'         => '',
+                    'start'         => $itemsProcessed,
+                    'count'         => $_ENV['DOPPLER_PER_PAGE'],
+                    'currency'      => 1,
+                    'language'      => 'english'
+                ], true);
 
                 $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
 
@@ -129,9 +122,9 @@ class SdAgend
 
         foreach(array_filter($groupedItems, fn($item) => $item['phase'] != null) as $item)
         {
-            $item['hash_name'] = str_replace('(', "{$item['phase']} (", $item['hash_name']);
+            $item['hash_name'] = format_hash_name($item['hash_name'], $item['phase']);
 
-            $this->upsertConduitSteamItem($item);
+            $this->upsertConduitSteamMarketCsgoItem($item);
         }
     }
 }
