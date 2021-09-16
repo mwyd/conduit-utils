@@ -59,7 +59,8 @@ class SmAgent
                         'icon'          => $item->asset_description->icon_url,
                         'icon_large'    => $item->asset_description->icon_url_large ?? null,
                         'name_color'    => "#{$item->asset_description->name_color}",
-                        'type'          => $item->asset_description->type
+                        'type'          => $item->asset_description->type,
+                        'collection'    => get_steam_market_item_collection($item->asset_description->descriptions ?? [])
                     ]);
                 }
 
