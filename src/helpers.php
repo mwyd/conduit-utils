@@ -19,7 +19,7 @@ function get_steam_market_item_collection(array $descriptions) : ?string
 {
     foreach($descriptions as $description)
     {
-        if(str_contains($description->value, 'Collection')) return $description->value; 
+        if(isset($description->color) && $description->color == '9da1a9') return $description->value; 
     }
 
     return null;
