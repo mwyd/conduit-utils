@@ -86,7 +86,7 @@ class SdAgend
                     foreach($listings as $listing)
                     {
                         $items[$listing->asset->id] = [
-                            'price' => ($listing->converted_price + $listing->converted_fee) / 100
+                            'price' => (($listing->converted_price ?? 0) + ($listing->converted_fee ?? 0)) / 100
                         ];
                     }
 
