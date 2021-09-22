@@ -96,6 +96,7 @@ class SdAgend
                         $items[$asset->id]['icon_large'] = $asset->icon_url_large;
                         $items[$asset->id]['name_color'] = "#{$asset->name_color}";
                         $items[$asset->id]['type'] = $asset->type;
+                        $items[$asset->id]['collection'] = get_steam_market_item_collection($asset->descriptions);
                     }
                 }
 
