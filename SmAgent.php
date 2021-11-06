@@ -50,7 +50,7 @@ class SmAgent
 
                 foreach($resJson->results as $item)
                 {
-                    if(!$_ENV['BASE_DOPPLERS'] && str_contains($item->hash_name, 'Doppler')) continue;
+                    if(!$_ENV['BASE_DOPPLERS'] && str_contains($item->hash_name, 'Doppler (')) continue;
 
                     $this->upsertConduitSteamMarketCsgoItem([
                         'hash_name'     => $item->hash_name,
