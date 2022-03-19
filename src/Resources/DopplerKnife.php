@@ -2,7 +2,7 @@
 
 namespace ConduitUtils\Resources;
 
-class DopplerKnive
+class DopplerKnife
 {
     public static bool $hasStattrak = true;
 

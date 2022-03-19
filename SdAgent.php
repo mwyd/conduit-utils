@@ -4,12 +4,12 @@ require_once __DIR__ . "/vendor/autoload.php";
 
 use ConduitUtils\Api\HasConduitSteamMarketCsgoItems;
 use ConduitUtils\Api\HasSteamMarketItems;
-use ConduitUtils\Resources\DopplerKnive;
+use ConduitUtils\Resources\DopplerKnife;
 use ConduitUtils\Resources\DopplerWeapon;
 use Dotenv\Dotenv;
 use pSockets\Utils\Logger;
 
-class SdAgend
+class SdAgent
 {
     use HasConduitSteamMarketCsgoItems, HasSteamMarketItems;
 
@@ -36,11 +36,11 @@ class SdAgend
 
     private function fetchKnives() : void
     {
-        $stattraks = DopplerKnive::$hasStattrak ? ['★', '★ StatTrak™'] : ['★'];
+        $stattraks = DopplerKnife::$hasStattrak ? ['★', '★ StatTrak™'] : ['★'];
 
-        foreach(DopplerKnive::$icons as $name => $icons)
+        foreach(DopplerKnife::$icons as $name => $icons)
         {
-            foreach(DopplerKnive::$exteriors as $exterior)
+            foreach(DopplerKnife::$exteriors as $exterior)
             {
                 foreach($stattraks as $prefix)
                 {
@@ -150,7 +150,7 @@ try
     $dotenv = Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 
-    $smAgent = new SdAgend();
+    $smAgent = new SdAgent();
     $smAgent->run();
 }
 catch(\Exception $e)
