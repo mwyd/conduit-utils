@@ -25,13 +25,12 @@ class BmAgent
 
     public function run() : void
     {
-        $page = 1;
-        $limit = $_ENV['BUFF_PAGE_LIMIT'];
+        $itemsProcessed = $_ENV['BUFF_ITEMS_START'];
 
-        for($i = 0; $i < $page; $i++) {
+        for($i = 0; $i < ceil($_ENV['BUFF_ITEMS_LIMIT'] / $_ENV['BUFF_ITEMS_PER_PAGE']); $i++) {
             $res = $this->getConduitBuffMarketCsgoItems([
-                'offset'    => $i * $limit,
-                'limit'     => $limit
+                'offset'    => $itemsProcessed,
+                'limit'     => $_ENV['BUFF_ITEMS_PER_PAGE']
             ]);
 
             $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
@@ -40,9 +39,11 @@ class BmAgent
 
             $this->handleBuffMarketCsgoItems($resJson->data);
 
-            if(count($resJson->data) < $limit) break;
+            $itemsProcessed += count($resJson->data);
+        
+            $this->logger->log("Got {$itemsProcessed} of {$_ENV['BUFF_ITEMS_LIMIT']} items", 1);
 
-            $page++;
+            if(count($resJson->data) < $_ENV['BUFF_ITEMS_PER_PAGE']) break;
         }
     }
 
@@ -79,8 +80,6 @@ class BmAgent
                 }
             }
         }
-
-        $this->logger->log('Updated ' . count($items) . ' items');
     }
 
     private function initYuanDollarExchangeRate() : void
