@@ -65,7 +65,7 @@ class BmAgent
                 if($resJson->code != 'OK' || count($resJson->data->items) == 0) continue;
 
                 $this->updateConduitBuffMarketCsgoItem($items[$i]->hash_name, [
-                    'volume'    => count($resJson->data->items),
+                    'volume'    => $resJson->data->total_count,
                     'price'     => round($resJson->data->items[0]->price * $this->yuanDollarExchangeRate, 2)
                 ]);
             }
