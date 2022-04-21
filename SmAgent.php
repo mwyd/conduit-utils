@@ -20,16 +20,16 @@ class SmAgent
 
     public function run() : void
     {
-        $itemsProcessed = $_ENV['ITEMS_START'];
+        $itemsProcessed = $_ENV['STEAM_ITEMS_START'];
 
-        for($i = 0; $i < ceil($_ENV['ITEMS_LIMIT'] / $_ENV['ITEMS_PER_PAGE']); $i++)
+        for($i = 0; $i < ceil($_ENV['STEAM_ITEMS_LIMIT'] / $_ENV['STEAM_ITEMS_PER_PAGE']); $i++)
         {
             try
             {
                 $res = $this->getSteamMarketItems([
                     'query'                 => '',
                     'start'                 => $itemsProcessed,
-                    'count'                 => $_ENV['ITEMS_PER_PAGE'],
+                    'count'                 => $_ENV['STEAM_ITEMS_PER_PAGE'],
                     'search_descriptions'   => 0,
                     'sort_column'           => 'name',
                     'sort_dir'              => 'asc',
@@ -42,7 +42,7 @@ class SmAgent
 
                 if(empty($resJson->results) && $resJson->searchdata->total_count == 0)
                 {
-                    sleep($_ENV['REQUEST_DELAY_SMALL']);
+                    sleep($_ENV['STEAM_REQUEST_DELAY_SMALL']);
                     $i--;
 
                     continue;
@@ -50,7 +50,7 @@ class SmAgent
 
                 foreach($resJson->results as $item)
                 {
-                    if(!$_ENV['BASE_DOPPLERS'] && str_contains($item->hash_name, 'Doppler (')) continue;
+                    if(!$_ENV['STEAM_BASE_DOPPLERS'] && str_contains($item->hash_name, 'Doppler (')) continue;
 
                     $this->upsertConduitSteamMarketCsgoItem([
                         'hash_name'     => $item->hash_name,
@@ -66,7 +66,7 @@ class SmAgent
 
                 $itemsProcessed += count($resJson->results);
         
-                $this->logger->log("Got {$itemsProcessed} of {$_ENV['ITEMS_LIMIT']} items", 1);
+                $this->logger->log("Got {$itemsProcessed} of {$_ENV['STEAM_ITEMS_LIMIT']} items", 1);
 
                 if($itemsProcessed >= $resJson->searchdata->total_count) break;
             }
@@ -76,7 +76,7 @@ class SmAgent
 
                 if($e->getCode() == 429 || $e->getCode() == 403)
                 {
-                    sleep($_ENV['REQUEST_DELAY']);
+                    sleep($_ENV['STEAM_REQUEST_DELAY']);
                     $i--;
                 }
             }
@@ -89,7 +89,7 @@ try
     $dotenv = Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 
-    $_ENV['BASE_DOPPLERS'] = filter_var($_ENV['BASE_DOPPLERS'], \FILTER_VALIDATE_BOOLEAN);
+    $_ENV['STEAM_BASE_DOPPLERS'] = filter_var($_ENV['STEAM_BASE_DOPPLERS'], \FILTER_VALIDATE_BOOLEAN);
 
     $smAgent = new SmAgent();
     $smAgent->run();

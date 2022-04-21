@@ -229,12 +229,12 @@ try
         $ws = new SpAgent($_ENV['SHADOWPAY_WS_URL'], [
             'LOG_LEVEL'             => $_ENV['LOG_LEVEL'],
             'ADDITIONAL_HEADERS'    => [
-                'Origin: ' . $_ENV['ORIGIN']
+                'Origin: ' . $_ENV['SHADOWPAY_ORIGIN']
             ]
         ]);
         $ws->run();
     
-        sleep($_ENV['RECONNECT_DELAY']);
+        sleep($_ENV['SHADOWPAY_RECONNECT_DELAY']);
     }
 }
 catch(\Exception $e)

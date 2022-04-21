@@ -12,7 +12,7 @@ trait HasShadowpayMarket
         return (new HttpClient)->get($_ENV['SHADOWPAY_API_URL'] . '/market/is_logged', [
             'headers' => [
                 'Accept' => 'application/json',
-                'Origin' => $_ENV['ORIGIN']
+                'Origin' => $_ENV['SHADOWPAY_ORIGIN']
             ],
             'http_errors' => $httpErrors
         ]);
@@ -23,7 +23,7 @@ trait HasShadowpayMarket
         return (new HttpClient)->get($_ENV['SHADOWPAY_API_URL'] . '/v2/user/items/steam', [
             'headers' => [
                 'Accept'    => 'application/json',
-                'Origin'    => $_ENV['ORIGIN']
+                'Origin'    => $_ENV['SHADOWPAY_ORIGIN']
             ],
             'query'         => $query,
             'http_errors'   => $httpErrors

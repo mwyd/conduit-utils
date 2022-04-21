@@ -74,7 +74,7 @@ class BmAgent
 
                 if($e->getCode() == 429)
                 {
-                    sleep($_ENV['REQUEST_DELAY']);
+                    sleep($_ENV['BUFF_REQUEST_DELAY']);
                     $i--;
                 }
             }

@@ -57,14 +57,14 @@ class SdAgent
         $items = [];
         $itemsProcessed = 0;
 
-        for($i = 0; $i < $_ENV['DOPPLER_PAGE_LIMIT']; $i++)
+        for($i = 0; $i < $_ENV['STEAM_DOPPLER_PAGE_LIMIT']; $i++)
         {
             try
             {
                 $res = $this->getSteamMarketItemListings($hashName, '730', [
                     'query'         => '',
                     'start'         => $itemsProcessed,
-                    'count'         => $_ENV['DOPPLER_PER_PAGE'],
+                    'count'         => $_ENV['STEAM_DOPPLER_PER_PAGE'],
                     'currency'      => 1,
                     'language'      => 'english'
                 ], true);
@@ -73,7 +73,7 @@ class SdAgent
 
                 if(!$resJson->success)
                 {
-                    sleep($_ENV['REQUEST_DELAY_SMALL']);
+                    sleep($_ENV['STEAM_REQUEST_DELAY_SMALL']);
                     $i--;
 
                     continue;
@@ -102,7 +102,7 @@ class SdAgent
 
                 $itemsProcessed += count($listings);
 
-                $this->logger->log("Got {$itemsProcessed} of " . $_ENV['DOPPLER_PAGE_LIMIT'] * $_ENV['DOPPLER_PER_PAGE'] . " items", 1);
+                $this->logger->log("Got {$itemsProcessed} of " . $_ENV['STEAM_DOPPLER_PAGE_LIMIT'] * $_ENV['STEAM_DOPPLER_PER_PAGE'] . " items", 1);
 
                 if($itemsProcessed >= $resJson->total_count) break;
             }
@@ -112,7 +112,7 @@ class SdAgent
 
                 if($e->getCode() == 429 || $e->getCode() == 403)
                 {
-                    sleep($_ENV['REQUEST_DELAY']);
+                    sleep($_ENV['STEAM_REQUEST_DELAY']);
                     $i--;
                 }
             }
