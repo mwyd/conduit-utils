@@ -31,8 +31,8 @@ class SmAgent
                     'start'                 => $itemsProcessed,
                     'count'                 => $_ENV['ITEMS_PER_PAGE'],
                     'search_descriptions'   => 0,
-                    'sort_column'           => 'popular',
-                    'sort_dir'              => 'desc',
+                    'sort_column'           => 'name',
+                    'sort_dir'              => 'asc',
                     'appid'                 => 730,
                     'norender'              => 1,
                     'l'                     => 'english'
