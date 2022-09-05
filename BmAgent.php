@@ -97,7 +97,7 @@ class BmAgent
 
             $plnDollarExchangeRate = $resJson->rates[0]->mid;
 
-            $yuanDollarExchangeRate = round($plnYuanExchangeRate / $plnDollarExchangeRate, 2);
+            $yuanDollarExchangeRate = round($plnYuanExchangeRate / $plnDollarExchangeRate, 4);
         }
         catch(\Exception $e) {
             Logger::warn($e->getMessage() . ': ' . $e->getCode());
