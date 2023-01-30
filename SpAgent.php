@@ -19,9 +19,11 @@ class SpAgent extends WsClient
         parent::__construct($address, $config);
     }
 
-    protected function onClose() : void {}
+    protected function onClose(): void
+    {
+    }
 
-    protected function onOpen() : void 
+    protected function onOpen(): void
     {
         $res = $this->shadowpayIsLogged(true);
 
@@ -37,16 +39,13 @@ class SpAgent extends WsClient
         );
     }
 
-    protected function onMessage(WsMessage $message) : void
+    protected function onMessage(WsMessage $message): void
     {
-        try
-        {
+        try {
             $msg = $message->json();
 
-            if(isset($msg->id))
-            {
-                switch($msg->id)
-                {
+            if (isset($msg->id)) {
+                switch ($msg->id) {
                     case 1:
                         $this->send(
                             json_encode([
@@ -55,7 +54,7 @@ class SpAgent extends WsClient
                                 'params' => [
                                     'data' => [],
                                     'method' => 'send_first_stat'
-                                ]      
+                                ]
                             ])
                         );
                         break;
@@ -66,152 +65,129 @@ class SpAgent extends WsClient
 
             $data = $msg->result->data->data;
 
-            switch($data->type)
-            {
+            switch ($data->type) {
                 case 'live_items':
-                    foreach($data->data as $item)
-                    {
+                    foreach ($data->data as $item) {
                         $this->createConduitShadowpaySoldItem($this->buildSchema($item), true);
                     }
                     break;
             }
-        }
-        catch(\Exception $e)
-        {
+        } catch (\Exception $e) {
             Logger::warn($e->getMessage() . ': ' . $e->getCode());
         }
     }
 
-    private function buildSchema(object $item) : array
+    private function buildSchema(object $item): array
     {
         $hashName = $item->name;
-    
-        $hashName .= match($item->shorten_exterior) {
-            'FN'        => ' (Factory New)',
-            'MW'        => ' (Minimal Wear)',
-            'FT'        => ' (Field-Tested)',
-            'WW'        => ' (Well-Worn)',
-            'BS'        => ' (Battle-Scarred)',
-            default     => ''
+
+        $hashName .= match ($item->shorten_exterior) {
+            'FN' => ' (Factory New)',
+            'MW' => ' (Minimal Wear)',
+            'FT' => ' (Field-Tested)',
+            'WW' => ' (Well-Worn)',
+            'BS' => ' (Battle-Scarred)',
+            default => ''
         };
-    
-        if($item->is_stattrak)
-        {
-            $hashName = str_contains($hashName, '★') 
-                ? str_replace('★', '★ StatTrak™', $hashName) 
+
+        if ($item->is_stattrak) {
+            $hashName = str_contains($hashName, '★')
+                ? str_replace('★', '★ StatTrak™', $hashName)
                 : 'StatTrak™ ' . $hashName;
         }
-    
+
         $conduitSteamPrice = null;
         $shadowpaySteamPrice = null;
 
-        if(str_contains($item->name, 'Doppler'))
-        {
+        if (str_contains($item->name, 'Doppler')) {
             $doppler = $this->getConduitDoppler($item->name, $item->shorten_exterior, $item->is_stattrak, $item->icon);
 
-            if($doppler)
-            {
+            if ($doppler) {
                 $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName, $doppler->phase);
                 $conduitSteamPrice = $doppler->price;
 
                 $hashName = format_hash_name($hashName, $doppler->phase);
             }
-        }
-        else
-        {
+        } else {
             $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName);
             $conduitSteamPrice = $this->getConduitSteamPrice($hashName);
         }
 
-        $schema['transaction_id']   = $item->id;
-        $schema['hash_name']        = $hashName;
-        $schema['suggested_price']  = $shadowpaySteamPrice;
-        $schema['steam_price']      = $conduitSteamPrice;
-        $schema['discount']         = $item->discount_percent ?? 0;
-        $schema['sold_at']          = $item->time_created;
-    
+        $schema['transaction_id'] = $item->id;
+        $schema['hash_name'] = $hashName;
+        $schema['suggested_price'] = $shadowpaySteamPrice;
+        $schema['steam_price'] = $conduitSteamPrice;
+        $schema['discount'] = $item->discount_percent ?? 0;
+        $schema['sold_at'] = $item->time_created;
+
         return $schema;
     }
 
-    private function getConduitSteamPrice(string $hashName) : ?float
+    private function getConduitSteamPrice(string $hashName): ?float
     {
         $price = null;
-    
-        try
-        {
+
+        try {
             $res = $this->getConduitSteamMarketCsgoItem($hashName, true);
-    
+
             $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
             $price = $resJson->data->price;
-        }
-        catch(\Exception $e)
-        {
+        } catch (\Exception $e) {
             Logger::warn($e->getMessage() . ': ' . $e->getCode());
         }
-    
+
         return $price;
     }
 
-    private function getShadowpaySteamPrice(string $hashName, ?string $phase = null) : ?float
+    private function getShadowpaySteamPrice(string $hashName, ?string $phase = null): ?float
     {
         $price = null;
-    
-        try
-        {
+
+        try {
             $res = $this->getShadowpaySteamItem([
-                'token'     => $_ENV['SHADOWPAY_API_TOKEN'],
-                'project'   => 'csgo',
-                'search'    => $hashName,
-                'limit'     => 50
+                'token' => $_ENV['SHADOWPAY_API_TOKEN'],
+                'project' => 'csgo',
+                'search' => $hashName,
+                'limit' => 50
             ], true);
-    
+
             $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
-    
-            if($resJson->status == 'success')
-            {
-                foreach($resJson->data as $item)
-                {
-                    if($item->steam_market_hash_name == $hashName && $item->phase == $phase)
-                    {
+
+            if ($resJson->status == 'success') {
+                foreach ($resJson->data as $item) {
+                    if ($item->steam_market_hash_name == $hashName && $item->phase == $phase) {
                         $price = $item->suggested_price;
                         break;
                     }
                 }
             }
-        }
-        catch(\Exception $e)
-        {
+        } catch (\Exception $e) {
             Logger::warn($e->getMessage() . ': ' . $e->getCode());
         }
-    
+
         return $price;
     }
 
-    private function getConduitDoppler(string $name, string $exterior, string $isStattrak, string $icon) : ?object
+    private function getConduitDoppler(string $name, string $exterior, string $isStattrak, string $icon): ?object
     {
         $doppler = null;
 
-        try
-        {
+        try {
             $res = $this->getConduitSteamMarketCsgoItems([
-                'search'        => $name,
-                'exteriors'     => $exterior,
-                'is_stattrak'   => $isStattrak
+                'search' => $name,
+                'exteriors' => $exterior,
+                'is_stattrak' => $isStattrak
             ], true);
-    
+
             $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
-            
-            foreach($resJson->data as $item)
-            {
-                if($item->icon == $icon || $item->icon_large == $icon)
-                {
+
+            foreach ($resJson->data as $item) {
+                if ($item->icon == $icon || $item->icon_large == $icon) {
                     $doppler = $item;
                     break;
                 }
             }
-        }
-        catch(\Exception $e)
-        {
+        } catch (\Exception $e) {
             Logger::warn($e->getMessage() . ': ' . $e->getCode());
         }
 
@@ -219,25 +195,21 @@ class SpAgent extends WsClient
     }
 }
 
-try
-{
+try {
     $dotenv = Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 
-    while(true)
-    {
+    while (true) {
         $ws = new SpAgent($_ENV['SHADOWPAY_WS_URL'], [
-            'LOG_LEVEL'             => $_ENV['LOG_LEVEL'],
-            'ADDITIONAL_HEADERS'    => [
+            'LOG_LEVEL' => $_ENV['LOG_LEVEL'],
+            'ADDITIONAL_HEADERS' => [
                 'Origin: ' . $_ENV['SHADOWPAY_ORIGIN']
             ]
         ]);
         $ws->run();
-    
+
         sleep($_ENV['SHADOWPAY_RECONNECT_DELAY']);
     }
-}
-catch(\Exception $e)
-{
+} catch (\Exception $e) {
     Logger::err($e->getMessage() . ': ' . $e->getCode());
 }

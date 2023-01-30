@@ -7,7 +7,7 @@ use GuzzleHttp\Client as HttpClient;
 
 trait HasShadowpayMarket
 {
-    protected function shadowpayIsLogged(bool $httpErrors = false) : ResponseInterface
+    protected function shadowpayIsLogged(bool $httpErrors = false): ResponseInterface
     {
         return (new HttpClient)->get($_ENV['SHADOWPAY_API_URL'] . '/market/is_logged', [
             'headers' => [
@@ -18,15 +18,15 @@ trait HasShadowpayMarket
         ]);
     }
 
-    protected function getShadowpaySteamItem(array $query = [], bool $httpErrors = false) : ResponseInterface
+    protected function getShadowpaySteamItem(array $query = [], bool $httpErrors = false): ResponseInterface
     {
         return (new HttpClient)->get($_ENV['SHADOWPAY_API_URL'] . '/v2/user/items/steam', [
             'headers' => [
-                'Accept'    => 'application/json',
-                'Origin'    => $_ENV['SHADOWPAY_ORIGIN']
+                'Accept' => 'application/json',
+                'Origin' => $_ENV['SHADOWPAY_ORIGIN']
             ],
-            'query'         => $query,
-            'http_errors'   => $httpErrors
+            'query' => $query,
+            'http_errors' => $httpErrors
         ]);
     }
 }

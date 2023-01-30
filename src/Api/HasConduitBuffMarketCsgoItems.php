@@ -7,18 +7,18 @@ use GuzzleHttp\Client as HttpClient;
 
 trait HasConduitBuffMarketCsgoItems
 {
-    protected function getConduitBuffMarketCsgoItems(array $query = [], bool $httpErrors = false) : ResponseInterface
+    protected function getConduitBuffMarketCsgoItems(array $query = [], bool $httpErrors = false): ResponseInterface
     {
         return (new HttpClient)->get($_ENV['CONDUIT_API_URL'] . "/v1/buff-market-csgo-items", [
             'headers' => [
                 'Accept' => 'application/json'
             ],
-            'query'         => $query,
-            'http_errors'   => $httpErrors
+            'query' => $query,
+            'http_errors' => $httpErrors
         ]);
     }
 
-    protected function updateConduitBuffMarketCsgoItem(string $hashName, array $formData, bool $httpErrors = false) : ResponseInterface
+    protected function updateConduitBuffMarketCsgoItem(string $hashName, array $formData, bool $httpErrors = false): ResponseInterface
     {
         return (new HttpClient)->put($_ENV['CONDUIT_API_URL'] . "/v1/buff-market-csgo-items/{$hashName}", [
             'headers' => [
