@@ -1,13 +1,16 @@
 {
     "require": {
-        "mwyd/psockets": "^0.11.0",
+        "amphp/websocket-client": "^2.0",
         "guzzlehttp/guzzle": "^7.3",
-        "vlucas/phpdotenv": "^5.3"
+        "vlucas/phpdotenv": "^5.3",
+        "monolog/monolog": "^3.3"
     },
     "autoload": {
         "psr-4": {
             "ConduitUtils\\": "src/"
         },
         "files": ["src/helpers.php"]
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
