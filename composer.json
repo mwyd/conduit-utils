@@ -1,4 +1,7 @@
 {
+    "scripts": {
+        "test": "./vendor/bin/pest"
+    },
     "require": {
         "amphp/websocket-client": "^2.0",
         "guzzlehttp/guzzle": "^7.3",
@@ -12,5 +15,13 @@
         "files": ["src/helpers.php"]
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require-dev": {
+        "pestphp/pest": "^1.22"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
 }
