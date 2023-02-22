@@ -1,18 +1,17 @@
 <?php
 
-namespace ConduitUtils\Agent;
+namespace ConduitUtils\Observer;
 
 use Amp\Websocket\Client\WebsocketConnection;
 use Amp\Websocket\Client\WebsocketHandshake;
 use ConduitUtils\Api\ConduitApi;
 use ConduitUtils\Api\ShadowpayApi;
-use Psr\Log\LoggerInterface;
 use Revolt\EventLoop;
 
 use function Amp\Websocket\Client\connect;
-use function ConduitUtils\{env, format_hash_name};
+use function ConduitUtils\{format_hash_name};
 
-class SpAgent implements AgentInterface
+class ShadowpayObserver
 {
     public const METHOD_DATA = 9;
 
@@ -23,13 +22,12 @@ class SpAgent implements AgentInterface
     private int $emitCounter = 0;
 
     public function __construct(
-        private readonly LoggerInterface $logger,
         private readonly ConduitApi $conduitApi,
         private readonly ShadowpayApi $shadowpayApi,
         private readonly array $options
     ) {
-        $handshake = (new WebsocketHandshake(env('SHADOWPAY_WS_URL')))
-            ->withHeader('origin', env('SHADOWPAY_ORIGIN'));
+        $handshake = (new WebsocketHandshake($this->options['uri']))
+            ->withHeader('origin', $this->options['origin']);
 
         $this->connection = connect($handshake);
     }
@@ -38,8 +36,12 @@ class SpAgent implements AgentInterface
     {
         $this->authenticate();
 
-        while ($message = $this->read()) {
-            $this->handleMessage($message);
+        while ($message = $this->connection->receive()) {
+            $payload = json_decode($message->buffer());
+
+            if (is_object($payload)) {
+                $this->handlePayload($payload);
+            }
         }
 
         $this->close();
@@ -47,19 +49,19 @@ class SpAgent implements AgentInterface
 
     private function authenticate(): void
     {
-        $res = $this->shadowpayApi->isLogged(true);
+        $response = $this->shadowpayApi->isLogged(true);
 
-        $resJson = json_decode($res->getBody());
+        $json = json_decode($response->getBody());
 
         $this->emit([
             'params' => [
-                'token' => $resJson->wss_token
+                'token' => $json->wss_token
             ]
         ]);
 
-        $message = $this->read();
+        $message = $this->connection->receive()?->buffer();
 
-        if ($message->id != $this->emitCounter) {
+        if (!$message || json_decode($message)?->id != $this->emitCounter) {
             $this->close();
 
             return;
@@ -70,9 +72,9 @@ class SpAgent implements AgentInterface
         $this->getFirstStat();
     }
 
-    private function handleMessage(object $message): void
+    private function handlePayload(object $payload): void
     {
-        $id = $message->id ?? null;
+        $id = $payload->id ?? null;
 
         if ($id !== null && $id != $this->emitCounter) {
             $this->close();
@@ -80,7 +82,7 @@ class SpAgent implements AgentInterface
             return;
         }
 
-        $result = $message->result->data->data ?? null;
+        $result = $payload->result->data->data ?? null;
 
         if ($result !== null && $result->type == 'live_items') {
             foreach ($result->data as $item) {
@@ -104,7 +106,7 @@ class SpAgent implements AgentInterface
 
     private function schedulePing(): void
     {
-        EventLoop::delay(env('SHADOWPAY_PING_INTERVAL'), function () {
+        EventLoop::delay($this->options['ping_interval'], function () {
             if (!$this->connection->isClosed()) {
                 $this->emit(['method' => self::METHOD_PING]);
             }
@@ -122,17 +124,6 @@ class SpAgent implements AgentInterface
         ]);
     }
 
-    private function read(): ?object
-    {
-        $message = $this->connection->receive()?->buffer();
-
-        if ($message !== null) {
-            return json_decode($message);
-        }
-
-        return null;
-    }
-
     private function close(): void
     {
         $this->connection->close();
@@ -140,11 +131,7 @@ class SpAgent implements AgentInterface
 
     private function dumpItem(object $item): void
     {
-        try {
-            $this->conduitApi->createShadowpaySoldItem($this->buildSchema($item), true);
-        } catch (\Exception $e) {
-            $this->logger->warning($e->getMessage());
-        }
+        $this->conduitApi->createShadowpaySoldItem($this->buildSchema($item));
     }
 
     private function buildSchema(object $item): array
@@ -195,72 +182,60 @@ class SpAgent implements AgentInterface
 
     private function getConduitSteamPrice(string $hashName): ?float
     {
-        $price = null;
+        $response = $this->conduitApi->getSteamMarketCsgoItem($hashName);
 
-        try {
-            $res = $this->conduitApi->getSteamMarketCsgoItem($hashName, true);
-
-            $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
-            $price = $resJson->data->price;
-        } catch (\Exception $e) {
-            $this->logger->warning($e->getMessage());
+        if ($response->getStatusCode() != 200) {
+            return null;
         }
 
-        return $price;
+        $json = json_decode($response->getBody());
+
+        return $json->data->price;
     }
 
     private function getShadowpaySteamPrice(string $hashName, ?string $phase = null): ?float
     {
-        $price = null;
+        $response = $this->shadowpayApi->getSteamItem([
+            'project' => 'csgo',
+            'search' => $hashName,
+            'limit' => 50
+        ]);
 
-        try {
-            $res = $this->shadowpayApi->getSteamItem([
-                'token' => env('SHADOWPAY_API_TOKEN'),
-                'project' => 'csgo',
-                'search' => $hashName,
-                'limit' => 50
-            ], true);
+        $json = json_decode($response->getBody());
 
-            $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
-
-            if ($resJson->status == 'success') {
-                foreach ($resJson->data as $item) {
-                    if ($item->steam_market_hash_name == $hashName && $item->phase == $phase) {
-                        $price = $item->suggested_price;
-                        break;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            $this->logger->warning($e->getMessage());
+        if ($response->getStatusCode() != 200 || $json->status != 'success') {
+            return null;
         }
 
-        return $price;
+        foreach ($json->data as $item) {
+            if ($item->steam_market_hash_name == $hashName && $item->phase == $phase) {
+                return $item->suggested_price;
+            }
+        }
+
+        return null;
     }
 
     private function getConduitDoppler(string $name, string $exterior, string $isStattrak, string $icon): ?object
     {
-        $doppler = null;
+        $response = $this->conduitApi->getSteamMarketCsgoItems([
+            'search' => $name,
+            'exteriors' => $exterior,
+            'is_stattrak' => $isStattrak
+        ]);
 
-        try {
-            $res = $this->conduitApi->getSteamMarketCsgoItems([
-                'search' => $name,
-                'exteriors' => $exterior,
-                'is_stattrak' => $isStattrak
-            ], true);
-
-            $resJson = json_decode(json: $res->getBody(), flags: \JSON_THROW_ON_ERROR);
-
-            foreach ($resJson->data as $item) {
-                if ($item->icon == $icon || $item->icon_large == $icon) {
-                    $doppler = $item;
-                    break;
-                }
-            }
-        } catch (\Exception $e) {
-            $this->logger->warning($e->getMessage());
+        if ($response->getStatusCode() != 200) {
+            return null;
         }
 
-        return $doppler;
+        $json = json_decode($response->getBody());
+
+        foreach ($json->data as $item) {
+            if ($item->icon == $icon || $item->icon_large == $icon) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 }

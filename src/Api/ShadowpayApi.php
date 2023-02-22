@@ -2,23 +2,25 @@
 
 namespace ConduitUtils\Api;
 
+use GuzzleHttp\Client;
 use Psr\Http\Message\ResponseInterface;
 
-final class ShadowpayApi extends AbstractApi
+final class ShadowpayApi
 {
+    private Client $client;
+
     public function __construct(
-        string $url,
-        private readonly string $origin
+        private readonly string $token,
+        array $options
     ) {
-        parent::__construct($url);
+        $this->client = new Client($options);
     }
 
     public function isLogged(bool $httpErrors = false): ResponseInterface
     {
-        return $this->client->get("market/is_logged", [
+        return $this->client->get('market/is_logged', [
             'headers' => [
-                'Accept' => 'application/json',
-                'Origin' => $this->origin
+                'Accept' => 'application/json'
             ],
             'http_errors' => $httpErrors
         ]);
@@ -26,12 +28,11 @@ final class ShadowpayApi extends AbstractApi
 
     public function getSteamItem(array $query = [], bool $httpErrors = false): ResponseInterface
     {
-        return $this->client->get("v2/user/items/steam", [
+        return $this->client->get('v2/user/items/steam', [
             'headers' => [
-                'Accept' => 'application/json',
-                'Origin' => $this->origin
+                'Accept' => 'application/json'
             ],
-            'query' => $query,
+            'query' => ['token' => $this->token] + $query,
             'http_errors' => $httpErrors
         ]);
     }
