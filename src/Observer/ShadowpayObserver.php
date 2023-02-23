@@ -9,7 +9,7 @@ use ConduitUtils\Api\ShadowpayApi;
 use Revolt\EventLoop;
 
 use function Amp\Websocket\Client\connect;
-use function ConduitUtils\{format_hash_name};
+use function ConduitUtils\format_hash_name;
 
 class ShadowpayObserver
 {
@@ -17,9 +17,11 @@ class ShadowpayObserver
 
     public const METHOD_PING = 7;
 
-    private WebsocketConnection $connection;
+    private readonly WebsocketConnection $connection;
 
     private int $emitCounter = 0;
+
+    private array $emits = [];
 
     public function __construct(
         private readonly ConduitApi $conduitApi,
@@ -37,11 +39,7 @@ class ShadowpayObserver
         $this->authenticate();
 
         while ($message = $this->connection->receive()) {
-            $payload = json_decode($message->buffer());
-
-            if (is_object($payload)) {
-                $this->handlePayload($payload);
-            }
+            $this->handlePayload($message->buffer());
         }
 
         $this->close();
@@ -49,67 +47,87 @@ class ShadowpayObserver
 
     private function authenticate(): void
     {
-        $response = $this->shadowpayApi->isLogged(true);
+        $response = $this->shadowpayApi->isLogged();
 
         $json = json_decode($response->getBody());
+
+        if (!$json || $json->status != 'success') {
+            $this->close();
+
+            return;
+        }
 
         $this->emit([
             'params' => [
                 'token' => $json->wss_token
             ]
-        ]);
+        ], function () {
+            echo 'Authenticated' . \PHP_EOL;
+        });
 
-        $message = $this->connection->receive()?->buffer();
+        $payload = $this->connection->receive()?->buffer();
 
-        if (!$message || json_decode($message)?->id != $this->emitCounter) {
+        if (!$payload) {
             $this->close();
 
             return;
         }
+
+        $this->handlePayload($payload);
 
         $this->schedulePing();
 
         $this->getFirstStat();
     }
 
-    private function handlePayload(object $payload): void
+    private function handlePayload(string $payload): void
     {
-        $id = $payload->id ?? null;
+        $response = json_decode($payload);
 
-        if ($id !== null && $id != $this->emitCounter) {
-            $this->close();
+        if (!is_object($response)) {
+            return;
+        }
+
+        $id = $response->id ?? null;
+
+        if ($id && array_key_exists($id, $this->emits)) {
+            $this->emits[$id]($response);
+
+            unset($this->emits[$id]);
 
             return;
         }
 
-        $result = $payload->result->data->data ?? null;
+        $result = $response->result->data->data ?? null;
 
-        if ($result !== null && $result->type == 'live_items') {
+        if ($result?->type == 'live_items') {
             foreach ($result->data as $item) {
                 $this->dumpItem($item);
             }
-
-            return;
-        }
-
-        if ($id !== null && $result === null) {
-            $this->schedulePing();
         }
     }
 
-    private function emit(array $payload): void
+    private function emit(array $payload, \Closure $onResponse): void
     {
+        $id = ++$this->emitCounter;
+
+        $this->emits[$id] = $onResponse;
+
         $this->connection->send(
-            json_encode(['id' => ++$this->emitCounter, ...$payload])
+            json_encode(['id' => $id] + $payload)
         );
     }
 
     private function schedulePing(): void
     {
         EventLoop::delay($this->options['ping_interval'], function () {
-            if (!$this->connection->isClosed()) {
-                $this->emit(['method' => self::METHOD_PING]);
+            if ($this->connection->isClosed()) {
+                return;
             }
+
+            $this->emit(['method' => self::METHOD_PING], function () {
+                $this->schedulePing();
+            });
         });
     }
 
@@ -121,7 +139,9 @@ class ShadowpayObserver
                 'data' => [],
                 'method' => 'send_first_stat'
             ]
-        ]);
+        ], function () {
+            echo 'Got first stat' . \PHP_EOL;
+        });
     }
 
     private function close(): void
