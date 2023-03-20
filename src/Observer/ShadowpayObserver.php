@@ -6,10 +6,11 @@ use Amp\Websocket\Client\WebsocketConnection;
 use Amp\Websocket\Client\WebsocketHandshake;
 use ConduitUtils\Api\ConduitApi;
 use ConduitUtils\Api\ShadowpayApi;
+use Psr\Log\LoggerInterface;
 use Revolt\EventLoop;
 
 use function Amp\Websocket\Client\connect;
-use function ConduitUtils\format_hash_name;
+use function ConduitUtils\{create_logger, format_hash_name};
 
 class ShadowpayObserver
 {
@@ -18,6 +19,8 @@ class ShadowpayObserver
     public const METHOD_PING = 7;
 
     private readonly WebsocketConnection $connection;
+
+    private readonly LoggerInterface $logger;
 
     private int $emitCounter = 0;
 
@@ -32,6 +35,8 @@ class ShadowpayObserver
             ->withHeader('origin', $this->options['origin']);
 
         $this->connection = connect($handshake);
+
+        $this->logger = create_logger('shadowpay_observer', 'php://stdout');
     }
 
     public function run(): void
@@ -62,7 +67,7 @@ class ShadowpayObserver
                 'token' => $json->wss_token
             ]
         ], function () {
-            echo 'Authenticated' . \PHP_EOL;
+            $this->logger->info('Authenticated');
         });
 
         $payload = $this->connection->receive()?->buffer();
@@ -140,7 +145,7 @@ class ShadowpayObserver
                 'method' => 'send_first_stat'
             ]
         ], function () {
-            echo 'Got first stat' . \PHP_EOL;
+            $this->logger->info('Got first stat');
         });
     }
 
@@ -176,14 +181,14 @@ class ShadowpayObserver
         $conduitSteamPrice = null;
         $shadowpaySteamPrice = null;
 
-        if (str_contains($item->name, 'Doppler')) {
+        if (str_contains($item->name, 'Doppler (')) {
             $doppler = $this->getConduitDoppler($item->name, $item->shorten_exterior, $item->is_stattrak, $item->icon);
 
             if ($doppler) {
                 $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName, $doppler->phase);
                 $conduitSteamPrice = $doppler->price;
 
-                $hashName = format_hash_name($hashName, $doppler->phase);
+                $hashName = format_hash_name($hashName, $doppler->phase ?? '');
             }
         } else {
             $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName);
