@@ -87,25 +87,27 @@ class ShadowpayObserver
 
     private function handlePayload(string $payload): void
     {
-        $response = json_decode($payload);
-
-        if (!is_object($response)) {
-            return;
+        foreach ($this->parseEvents($payload) as $event) {
+            $this->handleEvent($event);
         }
+    }
 
-        $id = $response->id ?? null;
+    private function handleEvent(object $event): void
+    {
+        $id = $event->id ?? null;
 
         if ($id && array_key_exists($id, $this->emits)) {
-            $this->emits[$id]($response);
+            $this->emits[$id]($event);
 
             unset($this->emits[$id]);
 
             return;
         }
 
-        $result = $response->result->data->data ?? null;
+        $result = $event->result->data->data ?? null;
+        $channel = $event->result->channel ?? '';
 
-        if ($result?->type == 'live_items') {
+        if ($result?->type == 'live_items' && str_starts_with($channel, 'general')) {
             foreach ($result->data as $item) {
                 $this->dumpItem($item);
             }
@@ -121,6 +123,23 @@ class ShadowpayObserver
         $this->connection->send(
             json_encode(['id' => $id] + $payload)
         );
+    }
+
+    private function parseEvents(string $payload): array
+    {
+        $events = [];
+
+        foreach (explode("\n", trim($payload)) as $line) {
+            $event = json_decode($line);
+
+            if (!is_object($event)) {
+                continue;
+            }
+
+            $events[] = $event;
+        }
+
+        return $events;
     }
 
     private function schedulePing(): void
@@ -176,6 +195,8 @@ class ShadowpayObserver
             $hashName = str_contains($hashName, '★')
                 ? str_replace('★', '★ StatTrak™', $hashName)
                 : 'StatTrak™ ' . $hashName;
+        } elseif ($item->is_souvenir) {
+            $hashName = 'Souvenir ' . $hashName;
         }
 
         $conduitSteamPrice = null;
