@@ -14,9 +14,11 @@ use function ConduitUtils\{create_logger, format_hash_name};
 
 class ShadowpayObserver
 {
-    public const METHOD_DATA = 9;
+    private const PROJECT = 'csgo';
 
-    public const METHOD_PING = 7;
+    private const METHOD_DATA = 9;
+
+    private const METHOD_PING = 7;
 
     private readonly WebsocketConnection $connection;
 
@@ -175,6 +177,10 @@ class ShadowpayObserver
 
     private function dumpItem(object $item): void
     {
+        if ($item->project != self::PROJECT) {
+            return;
+        }
+
         $this->conduitApi->createShadowpaySoldItem($this->buildSchema($item));
     }
 
@@ -199,27 +205,20 @@ class ShadowpayObserver
             $hashName = 'Souvenir ' . $hashName;
         }
 
-        $conduitSteamPrice = null;
-        $shadowpaySteamPrice = null;
+        if (str_contains($hashName, 'Doppler (')) {
+            $shadowpaySteamItem = $this->getShadowpaySteamItem($hashName, $item->icon);
 
-        if (str_contains($item->name, 'Doppler (')) {
-            $doppler = $this->getConduitDoppler($item->name, $item->shorten_exterior, $item->is_stattrak, $item->icon);
-
-            if ($doppler) {
-                $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName, $doppler->phase);
-                $conduitSteamPrice = $doppler->price;
-
-                $hashName = format_hash_name($hashName, $doppler->phase ?? '');
+            if ($shadowpaySteamItem && $shadowpaySteamItem->phase) {
+                $hashName = format_hash_name($hashName, $shadowpaySteamItem->phase);
             }
         } else {
-            $shadowpaySteamPrice = $this->getShadowpaySteamPrice($hashName);
-            $conduitSteamPrice = $this->getConduitSteamPrice($hashName);
+            $shadowpaySteamItem = $this->getShadowpaySteamItem($hashName);
         }
 
         $schema['transaction_id'] = $item->id;
         $schema['hash_name'] = $hashName;
-        $schema['suggested_price'] = $shadowpaySteamPrice;
-        $schema['steam_price'] = $conduitSteamPrice;
+        $schema['suggested_price'] = $shadowpaySteamItem?->suggested_price;
+        $schema['steam_price'] = $this->getConduitSteamPrice($hashName);
         $schema['discount'] = $item->discount_percent ?? 0;
         $schema['sold_at'] = $item->time_created;
 
@@ -239,11 +238,11 @@ class ShadowpayObserver
         return $json->data->price;
     }
 
-    private function getShadowpaySteamPrice(string $hashName, ?string $phase = null): ?float
+    private function getShadowpaySteamItem(string $hashName, ?string $icon = null): ?object
     {
         $response = $this->shadowpayApi->getSteamItem([
-            'project' => 'csgo',
-            'search' => $hashName,
+            'project' => self::PROJECT,
+            'steam_market_hash_name' => $hashName,
             'limit' => 50
         ]);
 
@@ -253,31 +252,12 @@ class ShadowpayObserver
             return null;
         }
 
-        foreach ($json->data as $item) {
-            if ($item->steam_market_hash_name == $hashName && $item->phase == $phase) {
-                return $item->suggested_price;
-            }
+        if (!$icon) {
+            return $json->data[0] ?? null;
         }
 
-        return null;
-    }
-
-    private function getConduitDoppler(string $name, string $exterior, string $isStattrak, string $icon): ?object
-    {
-        $response = $this->conduitApi->getSteamMarketCsgoItems([
-            'search' => $name,
-            'exteriors' => $exterior,
-            'is_stattrak' => $isStattrak
-        ]);
-
-        if ($response->getStatusCode() != 200) {
-            return null;
-        }
-
-        $json = json_decode($response->getBody());
-
         foreach ($json->data as $item) {
-            if ($item->icon == $icon || $item->icon_large == $icon) {
+            if ($item->icon == $icon) {
                 return $item;
             }
         }
