@@ -256,6 +256,8 @@ class ShadowpayObserver
             return $json->data[0] ?? null;
         }
 
+        usort($json->data, fn ($left, $right) => $right->phase <=> $left->phase);
+
         foreach ($json->data as $item) {
             if ($item->icon == $icon) {
                 return $item;
