@@ -20,7 +20,8 @@ final class ShadowpayApi
     {
         return $this->client->get('market/is_logged', [
             'headers' => [
-                'Accept' => 'application/json'
+                'Accept' => 'application/json',
+                'Referer' => 'https://shadowpay.com/'
             ],
             'http_errors' => $httpErrors
         ]);
