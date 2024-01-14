@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace ConduitUtils\Observer;
 
 use Amp\Websocket\Client\WebsocketConnection;
@@ -56,9 +58,9 @@ class ShadowpayObserver
     {
         $response = $this->shadowpayApi->isLogged();
 
-        $json = json_decode($response->getBody());
+        $json = json_decode($response->getBody()->getContents());
 
-        if (!$json || $json->status != 'success') {
+        if (!$json || $json->status !== 'success') {
             $this->close();
 
             return;
@@ -109,7 +111,7 @@ class ShadowpayObserver
         $result = $event->result->data->data ?? null;
         $channel = $event->result->channel ?? '';
 
-        if ($result?->type == 'live_items' && str_starts_with($channel, 'general')) {
+        if ($result?->type === 'live_items' && str_starts_with($channel, 'general')) {
             foreach ($result->data as $item) {
                 $this->dumpItem($item);
             }
@@ -177,7 +179,7 @@ class ShadowpayObserver
 
     private function dumpItem(object $item): void
     {
-        if ($item->project != self::PROJECT) {
+        if ($item->project !== self::PROJECT) {
             return;
         }
 
@@ -229,11 +231,11 @@ class ShadowpayObserver
     {
         $response = $this->conduitApi->getSteamMarketCsgoItem($hashName);
 
-        if ($response->getStatusCode() != 200) {
+        if ($response->getStatusCode() !== 200) {
             return null;
         }
 
-        $json = json_decode($response->getBody());
+        $json = json_decode($response->getBody()->getContents());
 
         return $json->data->price;
     }
@@ -246,9 +248,9 @@ class ShadowpayObserver
             'limit' => 50
         ]);
 
-        $json = json_decode($response->getBody());
+        $json = json_decode($response->getBody()->getContents());
 
-        if ($response->getStatusCode() != 200 || $json->status != 'success') {
+        if ($response->getStatusCode() !== 200 || $json->status !== 'success') {
             return null;
         }
 
@@ -259,7 +261,7 @@ class ShadowpayObserver
         usort($json->data, fn ($left, $right) => $right->phase <=> $left->phase);
 
         foreach ($json->data as $item) {
-            if ($item->icon == $icon) {
+            if ($item->icon === $icon) {
                 return $item;
             }
         }
