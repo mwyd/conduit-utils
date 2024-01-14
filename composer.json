@@ -14,8 +14,6 @@
         },
         "files": ["src/helpers.php"]
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
     "require-dev": {
         "pestphp/pest": "^1.22"
     },

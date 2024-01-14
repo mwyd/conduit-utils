@@ -122,7 +122,7 @@ class ShadowpayObserver
 
         $this->emits[$id] = $onResponse;
 
-        $this->connection->send(
+        $this->connection->sendText(
             json_encode(['id' => $id] + $payload)
         );
     }
